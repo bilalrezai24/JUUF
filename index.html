@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JUUF Mini Hat Tournament</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  
+  <!-- 配置Tailwind自定义颜色 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#3b82f6', // 蓝色主色调
+            secondary: '#f97316', // 橙色辅助色
+            neutral: '#f3f4f6', // 中性背景色
+            dark: '#1e293b', // 深色文本
+            medal: {
+              gold: '#d4af37',
+              silver: '#c0c0c0',
+              bronze: '#cd7f32'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      }
+    }
+  </script>
+  
+  <!-- 自定义工具类 -->
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .shadow-card {
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      }
+      .transition-custom {
+        transition: all 0.3s ease;
+      }
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+      }
+      .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      .medal-animation {
+        animation: medalFloat 3s ease-in-out infinite;
+      }
+      @keyframes medalFloat {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 font-sans text-dark">
+  <!-- 顶部导航 -->
+  <header class="bg-primary text-white shadow-md sticky top-0 z-40">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center space-x-2">
+        <i class="fa fa-trophy text-2xl"></i>
+        <h1 class="text-xl md:text-2xl font-bold">JUUF Mini Hat Tournament</h1>
+      </div>
+      <!-- 移动端导航菜单按钮 -->
+      <button id="menu-toggle" class="md:hidden text-white focus:outline-none">
+        <i class="fa fa-bars text-xl"></i>
+      </button>
+      <!-- 桌面端导航 -->
+      <nav class="hidden md:flex space-x-6">
+        <li><a href="#schedule" class="hover:text-secondary transition-custom">赛程</a></li>
+        <li><a href="#rules" class="hover:text-secondary transition-custom">规则</a></li>
+        <li><a href="#standings" class="hover:text-secondary transition-custom">排名</a></li>
+      </nav>
+      <!-- 登录状态显示 -->
+      <div id="login-status" class="hidden md:flex items-center">
+        <span id="user-display" class="mr-3 hidden">管理员</span>
+        <button id="login-button" class="bg-white text-primary hover:bg-gray-100 font-medium py-1 px-4 rounded-lg transition-custom flex items-center">
+          <i class="fa fa-lock mr-2"></i><span>登录</span>
+        </button>
+        <button id="logout-button" class="bg-red-500 text-white hover:bg-red-600 font-medium py-1 px-4 rounded-lg transition-custom flex items-center hidden">
+          <i class="fa fa-sign-out mr-2"></i><span>退出</span>
+        </button>
+      </div>
+    </div>
+    <!-- 移动端导航菜单 -->
+    <nav id="mobile-menu" class="md:hidden hidden bg-primary/95 backdrop-blur-sm">
+      <ul class="container mx-auto px-4 py-2 flex flex-col space-y-3">
+        <li><a href="#schedule" class="block py-2 hover:text-secondary transition-custom">赛程</a></li>
+        <li><a href="#rules" class="block py-2 hover:text-secondary transition-custom">规则</a></li>
+        <li><a href="#standings" class="block py-2 hover:text-secondary transition-custom">排名</a></li>
+        <li id="mobile-login-item" class="block py-2 hover:text-secondary transition-custom">
+          <button id="mobile-login-button" class="w-full text-left flex items-center">
+            <i class="fa fa-lock mr-2"></i><span>登录</span>
+          </button>
+        </li>
+        <li id="mobile-logout-item" class="block py-2 hover:text-secondary transition-custom hidden">
+          <button id="mobile-logout-button" class="w-full text-left flex items-center">
+            <i class="fa fa-sign-out mr-2"></i><span>退出</span>
+          </button>
+        </li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- 登录模态框 -->
+  <div id="login-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md transform transition-all duration-300 scale-95 opacity-0" id="modal-content">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold text-primary">管理员登录</h3>
+        <button id="close-modal" class="text-gray-400 hover:text-gray-600">
+          <i class="fa fa-times text-xl"></i>
+        </button>
+      </div>
+      <form id="login-form" class="space-y-4">
+        <div>
+          <label for="username" class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+          <input type="text" id="username" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="输入用户名">
+        </div>
+        <div>
+          <label for="password" class="block text-sm font-medium text-gray-700 mb-1">密码</label>
+          <input type="password" id="password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="输入密码">
+        </div>
+        <div id="login-error" class="text-red-500 text-sm hidden">
+          <i class="fa fa-exclamation-circle mr-1"></i>用户名或密码错误
+        </div>
+        <button type="submit" class="w-full bg-primary hover:bg-primary/90 text-white font-medium py-2 px-4 rounded-lg transition-custom">
+          登录
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <main class="container mx-auto px-4 py-8">
+    <!-- 赛事概览卡片 -->
+    <section class="mb-10">
+      <div class="bg-white rounded-xl shadow-card p-6 transform hover:scale-[1.01] transition-custom">
+        <h2 class="text-2xl font-bold mb-4 flex items-center">
+          <i class="fa fa-info-circle text-primary mr-2"></i>赛事概览
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h3 class="text-lg font-semibold text-primary mb-2">基本信息</h3>
+            <ul class="space-y-2">
+              <li class="flex items-start">
+                <i class="fa fa-users text-gray-500 mt-1 mr-2"></i>
+                <span>4支队伍：A(老郑队)，B(吉吉队)，C(端末队)，D(CR7队)</span>
+              </li>
+              <li class="flex items-start">
+                <i class="fa fa-users text-gray-500 mt-1 mr-2"></i>
+                <span>每支队伍自己安排一件黑一件白队服</span>
+              </li>
+              <li class="flex items-start">
+                <i class="fa fa-calendar text-gray-500 mt-1 mr-2"></i>
+                <span>单天赛事，共6场比赛，每支队伍打三场</span>
+              </li>
+              <li class="flex items-start">
+                <i class="fa fa-clock-o text-gray-500 mt-1 mr-2"></i>
+                <span>每场比赛50分钟，无暂停</span>
+              </li>
+              <li class="flex items-start">
+                <i class="fa fa-venus-mars text-gray-500 mt-1 mr-2"></i>
+                <span>男女混合（4/3-5/2）</span>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold text-primary mb-2">积分规则</h3>
+            <ul class="space-y-2">
+              <li class="flex items-start">
+                <i class="fa fa-star text-yellow-400 mt-1 mr-2"></i>
+                <span>胜利：3分</span>
+              </li>
+              <li class="flex items-start">
+                <i class="fa fa-minus text-gray-500 mt-1 mr-2"></i>
+                <span>平局：2分</span>
+              </li>
+              <li class="flex items-start">
+                <i class="fa fa-times text-red-500 mt-1 mr-2"></i>
+                <span>失败：1分</span>
+              </li>
+              <li class="flex items-start">
+                <i class="fa fa-sort-numeric-asc text-gray-500 mt-1 mr-2"></i>
+                <span>排名顺序：积分 > 净胜分值 > 胜负关系 > 总得分</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 赛程表 -->
+    <section id="schedule" class="mb-10">
+      <div class="bg-white rounded-xl shadow-card p-6">
+        <h2 class="text-2xl font-bold mb-6 flex items-center">
+          <i class="fa fa-calendar-check-o text-primary mr-2"></i>比赛赛程
+          <span id="admin-badge" class="ml-2 text-xs font-semibold bg-secondary text-white px-2 py-1 rounded-full hidden">管理员模式</span>
+        </h2>
+        
+        <div class="overflow-x-auto scrollbar-hide">
+          <table class="w-full min-w-[768px] border-collapse">
+            <thead>
+              <tr class="bg-gray-100 text-left">
+                <th class="px-4 py-3 border-b font-semibold">时间</th>
+                <th class="px-4 py-3 border-b font-semibold">场次</th>
+                <th class="px-4 py-3 border-b font-semibold">队伍</th>
+                <th class="px-4 py-3 border-b font-semibold">场地</th>
+                <th class="px-4 py-3 border-b font-semibold text-center">A队得分</th>
+                <th class="px-4 py-3 border-b font-semibold text-center">B队得分</th>
+                <th class="px-4 py-3 border-b font-semibold text-center">胜者</th>
+                <th class="px-4 py-3 border-b font-semibold text-center">操作</th>
+              </tr>
+            </thead>
+            <tbody id="schedule-table-body">
+              <!-- 比赛行将由JavaScript动态生成 -->
+            </tbody>
+          </table>
+        </div>
+        
+        <div id="admin-actions" class="mt-6 text-center hidden">
+          <button id="save-results" class="bg-primary hover:bg-primary/90 text-white font-medium py-2 px-6 rounded-lg transition-custom flex items-center mx-auto">
+            <i class="fa fa-save mr-2"></i>保存结果
+          </button>
+        </div>
+        <div id="visitor-message" class="mt-6 text-center text-gray-500">
+          <p>请登录管理员账号以编辑比赛结果</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 规则详情 -->
+    <section id="rules" class="mb-10">
+      <div class="bg-white rounded-xl shadow-card p-6">
+        <h2 class="text-2xl font-bold mb-4 flex items-center">
+          <i class="fa fa-book text-primary mr-2"></i>比赛规则
+        </h2>
+        
+        <div class="space-y-4">
+          <div class="p-4 bg-gray-50 rounded-lg">
+            <h3 class="text-lg font-semibold text-primary mb-2">基本规则</h3>
+            <ul class="list-disc pl-5 space-y-2">
+              <li>4支队伍进行循环赛，每队与其他队伍各比赛一次</li>
+              <li>每场比赛时间为50分钟，时间到，盘落地后比赛结束</li>
+              <li>男女混合比赛，上场人员比例为4/3-5/2</li>
+              <li>比赛期间没有暂停</li>
+              <li>每支队伍需准备黑白两色队服</li>
+            </ul>
+          </div>
+          
+          <div class="p-4 bg-gray-50 rounded-lg">
+            <h3 class="text-lg font-semibold text-primary mb-2">积分规则</h3>
+            <ul class="list-disc pl-5 space-y-2">
+              <li>胜利积3分</li>
+              <li>平局积2分</li>
+              <li>失败积1分</li>
+              <li>排名顺序：积分 > 净胜分值 > 胜负关系 > 总得分</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 排名 -->
+    <section id="standings" class="mb-10">
+      <div class="bg-white rounded-xl shadow-card p-6">
+        <h2 class="text-2xl font-bold mb-6 flex items-center">
+          <i class="fa fa-trophy text-primary mr-2"></i>当前排名
+        </h2>
+        
+        <div class="overflow-x-auto scrollbar-hide">
+          <table class="w-full min-w-[768px] border-collapse">
+            <thead>
+              <tr class="bg-gray-100 text-left">
+                <th class="px-4 py-3 border-b font-semibold">排名</th>
+                <th class="px-4 py-3 border-b font-semibold">队伍</th>
+                <th class="px-4 py-3 border-b font-semibold text-center">比赛场次</th>
+                <th class="px-4 py-3 border-b font-semibold text-center">积分</th>
+                <th class="px-4 py-3 border-b font-semibold text-center">总得分</th>
+                <th class="px-4 py-3 border-b font-semibold text-center">总失分</th>
+                <th class="px-4 py-3 border-b font-semibold text-center">净胜分</th>
+                <th class="px-4 py-3 border-b font-semibold text-center">胜负关系</th>
+                <th class="px-4 py-3 border-b font-semibold text-center">奖牌</th>
+              </tr>
+            </thead>
+            <tbody id="standings-table-body">
+              <!-- 排名行将由JavaScript动态生成 -->
+            </tbody>
+          </table>
+        </div>
+        
+        <div id="ranking-explanation" class="mt-6 p-4 bg-blue-50 rounded-lg border-l-4 border-primary hidden">
+          <h3 class="font-semibold text-primary mb-2">排名说明</h3>
+          <p id="explanation-text" class="text-gray-700"></p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="bg-dark text-white py-6">
+    <div class="container mx-auto px-4">
+      <div class="flex flex-col md:flex-row justify-between items-center">
+        <div class="mb-4 md:mb-0">
+          <h3 class="text-lg font-semibold">JUUF Mini Hat Tournament</h3>
+          <p class="text-gray-400 text-sm"> 记录比赛结果，实时更新排名</p>
+        </div>
+        <div class="flex space-x-4">
+          <a href="#" class="text-gray-400 hover:text-white transition-custom">
+            <i class="fa fa-weixin text-xl"></i>
+          </a>
+          <a href="#" class="text-gray-400 hover:text-white transition-custom">
+            <i class="fa fa-weibo text-xl"></i>
+          </a>
+          <a href="#" class="text-gray-400 hover:text-white transition-custom">
+            <i class="fa fa-envelope text-xl"></i>
+          </a>
+        </div>
+      </div>
+      <div class="mt-6 pt-6 border-t border-gray-700 text-center text-gray-400 text-sm">
+        &copy; 2025 Bilal Rezai
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // 管理员凭证（实际应用中应使用更安全的认证方式）
+    const ADMIN_CREDENTIALS = {
+      username: 'bilal',
+      password: 'bilal123'
+    };
+    
+    // 全局状态
+    let isAdmin = false;
+    
+    // 比赛数据
+    const matches = [
+      { id: 1, time: "18:00 - 18:50", teams: "A(老郑) vs B(吉吉)", homeTeam: "A", awayTeam: "B", field: "场地1", homeScore: null, awayScore: null, winner: null },
+      { id: 2, time: "18:00 - 18:50", teams: "C(端末) vs D(CR7)", homeTeam: "C", awayTeam: "D", field: "场地2", homeScore: null, awayScore: null, winner: null },
+      { id: 3, time: "19:00 - 19:50", teams: "A(老郑) vs C(端末)", homeTeam: "A", awayTeam: "C", field: "场地1", homeScore: null, awayScore: null, winner: null },
+      { id: 4, time: "19:00 - 19:50", teams: "B(吉吉) vs D(CR7)", homeTeam: "B", awayTeam: "D", field: "场地2", homeScore: null, awayScore: null, winner: null },
+      { id: 5, time: "20:00 - 20:50", teams: "A(老郑) vs D(CR7)", homeTeam: "A", awayTeam: "D", field: "场地1", homeScore: null, awayScore: null, winner: null },
+      { id: 6, time: "20:00 - 20:50", teams: "C(端末) vs B(吉吉)", homeTeam: "C", awayTeam: "B", field: "场地2", homeScore: null, awayScore: null, winner: null }
+    ];
+
+    // 队伍数据
+    const teams = {
+      'A': { 
+        name: 'A(老郑)', 
+        shortName: 'A', 
+        captain: '老郑',
+        played: 0, 
+        points: 0, 
+        goalsFor: 0, 
+        goalsAgainst: 0, 
+        goalDifference: 0, 
+        headToHead: {} 
+      },
+      'B': { 
+        name: 'B(吉吉)', 
+        shortName: 'B', 
+        captain: '吉吉',
+        played: 0, 
+        points: 0, 
+        goalsFor: 0, 
+        goalsAgainst: 0, 
+        goalDifference: 0, 
+        headToHead: {} 
+      },
+      'C': { 
+        name: 'C(端末)', 
+        shortName: 'C', 
+        captain: '端末',
+        played: 0, 
+        points: 0, 
+        goalsFor: 0, 
+        goalsAgainst: 0, 
+        goalDifference: 0, 
+        headToHead: {} 
+      },
+      'D': { 
+        name: 'D(CR7)', 
+        shortName: 'D', 
+        captain: 'CR7',
+        played: 0, 
+        points: 0, 
+        goalsFor: 0, 
+        goalsAgainst: 0, 
+        goalDifference: 0, 
+        headToHead: {} 
+      }
+    };
+
+    // 页面加载完成后执行
+    document.addEventListener('DOMContentLoaded', () => {
+      // 清空localStorage中的数据
+      localStorage.removeItem('juufTournamentMatches');
+      
+      // 初始化比赛数据为空白
+      matches.forEach(match => {
+        match.homeScore = null;
+        match.awayScore = null;
+        match.winner = null;
+      });
+      
+      // 检查是否有保存的管理员状态
+      const savedAdminStatus = localStorage.getItem('juufTournamentAdmin');
+      if (savedAdminStatus === 'true') {
+        isAdmin = true;
+        updateAdminUI();
+      }
+      
+      renderScheduleTable();
+      renderStandingsTable();
+      
+      // 登录相关事件
+      document.getElementById('login-button').addEventListener('click', openLoginModal);
+      document.getElementById('mobile-login-button').addEventListener('click', openLoginModal);
+      document.getElementById('logout-button').addEventListener('click', logout);
+      document.getElementById('mobile-logout-button').addEventListener('click', logout);
+      document.getElementById('close-modal').addEventListener('click', closeLoginModal);
+      document.getElementById('login-form').addEventListener('submit', handleLogin);
+      
+      // 移动端菜单切换
+      document.getElementById('menu-toggle').addEventListener('click', () => {
+        const mobileMenu = document.getElementById('mobile-menu');
+        mobileMenu.classList.toggle('hidden');
+      });
+      
+      // 点击导航链接关闭移动端菜单
+      const navLinks = document.querySelectorAll('#mobile-menu a');
+      navLinks.forEach(link => {
+        link.addEventListener('click', () => {
+          document.getElementById('mobile-menu').classList.add('hidden');
+        });
+      });
+      
+      // 添加滚动时导航栏效果
+      window.addEventListener('scroll', () => {
+        const header = document.querySelector('header');
+        if (window.scrollY > 50) {
+          header.classList.add('py-2');
+          header.classList.add('shadow-lg');
+        } else {
+          header.classList.remove('py-2');
+          header.classList.remove('shadow-lg');
+        }
+      });
+      
+      // 平滑滚动
+      document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function(e) {
+          e.preventDefault();
+          const targetId = this.getAttribute('href');
+          const targetElement = document.querySelector(targetId);
+          
+          if (targetElement) {
+            window.scrollTo({
+              top: targetElement.offsetTop - 80, // 考虑导航栏高度
+              behavior: 'smooth'
+            });
+          }
+        });
+      });
+    });
+
+    // 打开登录模态框
+    function openLoginModal() {
+      const modal = document.getElementById('login-modal');
+      const modalContent = document.getElementById('modal-content');
+      
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        modalContent.classList.remove('scale-95', 'opacity-0');
+        modalContent.classList.add('scale-100', 'opacity-100');
+      }, 10);
+      
+      // 聚焦用户名输入框
+      document.getElementById('username').focus();
+    }
+
+    // 关闭登录模态框
+    function closeLoginModal() {
+      const modal = document.getElementById('login-modal');
+      const modalContent = document.getElementById('modal-content');
+      
+      modalContent.classList.remove('scale-100', 'opacity-100');
+      modalContent.classList.add('scale-95', 'opacity-0');
+      
+      setTimeout(() => {
+        modal.classList.add('hidden');
+        document.getElementById('login-error').classList.add('hidden');
+      }, 300);
+    }
+
+    // 处理登录
+    function handleLogin(e) {
+      e.preventDefault();
+      
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      
+      if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
+        isAdmin = true;
+        localStorage.setItem('juufTournamentAdmin', 'true');
+        updateAdminUI();
+        closeLoginModal();
+        
+        // 显示登录成功提示
+        showNotification('登录成功！已进入管理员模式', 'success');
+      } else {
+        document.getElementById('login-error').classList.remove('hidden');
+      }
+    }
+
+    // 退出登录
+    function logout() {
+      isAdmin = false;
+      localStorage.removeItem('juufTournamentAdmin');
+      updateAdminUI();
+      
+      // 显示登出成功提示
+      showNotification('已退出管理员模式', 'info');
+    }
+
+    // 更新管理员UI
+    function updateAdminUI() {
+      // 更新登录状态显示
+      const loginButton = document.getElementById('login-button');
+      const logoutButton = document.getElementById('logout-button');
+      const userDisplay = document.getElementById('user-display');
+      const mobileLoginItem = document.getElementById('mobile-login-item');
+      const mobileLogoutItem = document.getElementById('mobile-logout-item');
+      
+      if (isAdmin) {
+        loginButton.classList.add('hidden');
+        logoutButton.classList.remove('hidden');
+        userDisplay.classList.remove('hidden');
+        mobileLoginItem.classList.add('hidden');
+        mobileLogoutItem.classList.remove('hidden');
+        
+        // 显示管理员操作按钮
+        document.getElementById('admin-actions').classList.remove('hidden');
+        document.getElementById('visitor-message').classList.add('hidden');
+        document.getElementById('admin-badge').classList.remove('hidden');
+        
+        // 重新渲染赛程表，启用编辑
+        renderScheduleTable(true);
+      } else {
+        loginButton.classList.remove('hidden');
+        logoutButton.classList.add('hidden');
+        userDisplay.classList.add('hidden');
+        mobileLoginItem.classList.remove('hidden');
+        mobileLogoutItem.classList.add('hidden');
+        
+        // 隐藏管理员操作按钮
+        document.getElementById('admin-actions').classList.add('hidden');
+        document.getElementById('visitor-message').classList.remove('hidden');
+        document.getElementById('admin-badge').classList.add('hidden');
+        
+        // 重新渲染赛程表，禁用编辑
+        renderScheduleTable(false);
+      }
+    }
+
+    // 显示通知
+    function showNotification(message, type = 'info') {
+      const notification = document.createElement('div');
+      const bgColor = type === 'success' ? 'bg-green-500' : 'bg-blue-500';
+      
+      notification.className = `fixed top-4 right-4 ${bgColor} text-white px-4 py-2 rounded-lg shadow-lg z-50 transform transition-all duration-300 translate-y-0 opacity-0`;
+      notification.textContent = message;
+      document.body.appendChild(notification);
+      
+      // 显示和隐藏动画
+      setTimeout(() => {
+        notification.classList.remove('opacity-0');
+        notification.classList.add('opacity-100');
+      }, 10);
+      
+      setTimeout(() => {
+        notification.classList.remove('opacity-100');
+        notification.classList.add('opacity-0', 'translate-y-[-20px]');
+        setTimeout(() => notification.remove(), 300);
+      }, 2000);
+    }
+
+    // 加载保存的结果
+    function loadSavedResults() {
+      // 故意留空，确保不加载任何保存的数据
+    }
+
+    // 保存结果到本地存储
+    function saveResults() {
+      if (!isAdmin) {
+        showNotification('您没有权限保存数据，请先登录', 'error');
+        return;
+      }
+      
+      localStorage.setItem('juufTournamentMatches', JSON.stringify(matches));
+      
+      // 显示保存成功的提示
+      showNotification('结果已保存！', 'success');
+    }
+
+    // 渲染赛程表
+    function renderScheduleTable(editable = false) {
+      const tableBody = document.getElementById('schedule-table-body');
+      tableBody.innerHTML = '';
+      
+      matches.forEach(match => {
+        const row = document.createElement('tr');
+        row.className = 'border-b hover:bg-gray-50 transition-custom';
+        
+        // 交替背景色
+        if (match.id % 2 === 0) {
+          row.classList.add('bg-gray-50');
+        }
+        
+        // 构建表格行
+        if (editable) {
+          // 管理员模式 - 可编辑
+          row.innerHTML = `
+            <td class="px-4 py-3">${match.time}</td>
+            <td class="px-4 py-3">${match.id}</td>
+            <td class="px-4 py-3">${match.teams}</td>
+            <td class="px-4 py-3">${match.field}</td>
+            <td class="px-4 py-3">
+              <input type="number" min="0" class="w-full px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 text-center" 
+                    value="${match.homeScore !== null ? match.homeScore : ''}"
+                    onchange="updateScore(${match.id}, 'home', this.value)">
+            </td>
+            <td class="px-4 py-3">
+              <input type="number" min="0" class="w-full px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 text-center" 
+                    value="${match.awayScore !== null ? match.awayScore : ''}"
+                    onchange="updateScore(${match.id}, 'away', this.value)">
+            </td>
+            <td class="px-4 py-3">
+              <select class="w-full px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 text-center"
+                      onchange="updateWinner(${match.id}, this.value)">
+                <option value="" ${match.winner === null ? 'selected' : ''}>选择胜者</option>
+                <option value="${match.homeTeam}" ${match.winner === match.homeTeam ? 'selected' : ''}>${teams[match.homeTeam].name}</option>
+                <option value="draw" ${match.winner === 'draw' ? 'selected' : ''}>平局</option>
+                <option value="${match.awayTeam}" ${match.winner === match.awayTeam ? 'selected' : ''}>${teams[match.awayTeam].name}</option>
+              </select>
+            </td>
+            <td class="px-4 py-3 text-center">
+              <button class="bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center transition-custom"
+                      onclick="clearResult(${match.id})">
+                <i class="fa fa-refresh"></i>
+              </button>
+            </td>
+          `;
+        } else {
+          // 访客模式 - 只读
+          row.innerHTML = `
+            <td class="px-4 py-3">${match.time}</td>
+            <td class="px-4 py-3">${match.id}</td>
+            <td class="px-4 py-3">${match.teams}</td>
+            <td class="px-4 py-3">${match.field}</td>
+            <td class="px-4 py-3 text-center">${match.homeScore !== null ? match.homeScore : '-'}</td>
+            <td class="px-4 py-3 text-center">${match.awayScore !== null ? match.awayScore : '-'}</td>
+            <td class="px-4 py-3 text-center">
+              ${match.winner === null ? '-' : 
+                match.winner === 'draw' ? '平局' : 
+                teams[match.winner].name}
+            </td>
+            <td class="px-4 py-3 text-center">-</td>
+          `;
+        }
+        
+        tableBody.appendChild(row);
+      });
+    }
+
+    // 更新比分
+    function updateScore(matchId, teamType, score) {
+      if (!isAdmin) return;
+      
+      const match = matches.find(m => m.id === matchId);
+      if (!match) return;
+      
+      // 验证输入是否为数字
+      score = parseInt(score, 10);
+      if (isNaN(score) || score < 0) {
+        score = null;
+      }
+      
+      // 更新比分
+      if (teamType === 'home') {
+        match.homeScore = score;
+      } else {
+        match.awayScore = score;
+      }
+      
+      // 自动更新胜者
+      if (match.homeScore !== null && match.awayScore !== null) {
+        if (match.homeScore > match.awayScore) {
+          match.winner = match.homeTeam;
+        } else if (match.homeScore < match.awayScore) {
+          match.winner = match.awayTeam;
+        } else {
+          match.winner = 'draw';
+        }
+      } else {
+        match.winner = null;
+      }
+      
+      // 更新下拉选择框
+      const selectElement = document.querySelector(`tr:nth-child(${matchId}) select`);
+      if (selectElement) {
+        selectElement.value = match.winner || '';
+      }
+      
+      // 重新计算排名
+      calculateStandings();
+      renderStandingsTable();
+    }
+
+    // 更新胜者
+    function updateWinner(matchId, winner) {
+      if (!isAdmin) return;
+      
+      const match = matches.find(m => m.id === matchId);
+      if (!match) return;
+      
+      match.winner = winner;
+      
+      // 如果有比分，验证胜者是否与比分一致
+      if (match.homeScore !== null && match.awayScore !== null) {
+        if (winner === 'draw' && match.homeScore !== match.awayScore) {
+          // 比分不相等但选择了平局
+          match.winner = null;
+          showNotification('警告: 比分不相等，无法判定为平局！', 'error');
+        } else if (winner === match.homeTeam && match.homeScore <= match.awayScore) {
+          // 主队获胜但比分不支持
+          match.winner = null;
+          showNotification('警告: 主队得分不高于客队，无法判定为主队获胜！', 'error');
+        } else if (winner === match.awayTeam && match.awayScore <= match.homeScore) {
+          // 客队获胜但比分不支持
+          match.winner = null;
+          showNotification('警告: 客队得分不高于主队，无法判定为客队获胜！', 'error');
+        }
+      }
+      
+      // 重新计算排名
+      calculateStandings();
+      renderStandingsTable();
+    }
+
+    // 清除比赛结果
+    function clearResult(matchId) {
+      if (!isAdmin) return;
+      
+      const match = matches.find(m => m.id === matchId);
+      if (!match) return;
+      
+      match.homeScore = null;
+      match.awayScore = null;
+      match.winner = null;
+      
+      // 更新UI
+      const row = document.querySelector(`tr:nth-child(${matchId})`);
+      if (row) {
+        const inputs = row.querySelectorAll('input');
+        const select = row.querySelector('select');
+        
+        inputs.forEach(input => input.value = '');
+        select.value = '';
+      }
+      
+      // 重新计算排名
+      calculateStandings();
+      renderStandingsTable();
+    }
+
+    // 计算排名
+    function calculateStandings() {
+      // 重置队伍数据
+      for (const team in teams) {
+        teams[team].played = 0;
+        teams[team].points = 0;
+        teams[team].goalsFor = 0;
+        teams[team].goalsAgainst = 0;
+        teams[team].goalDifference = 0;
+        teams[team].headToHead = {};
+      }
+      
+      // 处理每场比赛
+      matches.forEach(match => {
+        if (match.winner === null) return;
+        
+        const homeTeam = teams[match.homeTeam];
+        const awayTeam = teams[match.awayTeam];
+        
+        // 更新比赛场次
+        homeTeam.played++;
+        awayTeam.played++;
+        
+        // 更新得分
+        if (match.homeScore !== null && match.awayScore !== null) {
+          homeTeam.goalsFor += match.homeScore;
+          homeTeam.goalsAgainst += match.awayScore;
+          awayTeam.goalsFor += match.awayScore;
+          awayTeam.goalsAgainst += match.homeScore;
+        }
+        
+        // 更新积分
+        if (match.winner === 'draw') {
+          // 平局
+          homeTeam.points += 2;
+          awayTeam.points += 2;
+          
+          // 更新胜负关系为平局
+          homeTeam.headToHead[match.awayTeam] = 'draw';
+          awayTeam.headToHead[match.homeTeam] = 'draw';
+        } else {
+          // 有胜负
+          if (match.winner === match.homeTeam) {
+            homeTeam.points += 3;
+            awayTeam.points += 1;
+            
+            // 更新胜负关系
+            homeTeam.headToHead[match.awayTeam] = 'win';
+            awayTeam.headToHead[match.homeTeam] = 'loss';
+          } else {
+            awayTeam.points += 3;
+            homeTeam.points += 1;
+            
+            // 更新胜负关系
+            homeTeam.headToHead[match.awayTeam] = 'loss';
+            awayTeam.headToHead[match.homeTeam] = 'win';
+          }
+        }
+      });
+      
+      // 计算净胜分
+      for (const team in teams) {
+        teams[team].goalDifference = teams[team].goalsFor - teams[team].goalsAgainst;
+      }
+    }
+
+    // 渲染排名表
+    function renderStandingsTable() {
+      const tableBody = document.getElementById('standings-table-body');
+      tableBody.innerHTML = '';
+      
+      // 对队伍进行排序
+      const sortedTeams = Object.values(teams).sort((a, b) => {
+        // 1. 积分
+        if (a.points !== b.points) {
+          return b.points - a.points;
+        }
+        
+        // 2. 净胜分
+        if (a.goalDifference !== b.goalDifference) {
+          return b.goalDifference - a.goalDifference;
+        }
+        
+        // 3. 胜负关系
+        if (a.headToHead[b.shortName]) {
+          if (a.headToHead[b.shortName] === 'win') return -1;
+          if (a.headToHead[b.shortName] === 'loss') return 1;
+        }
+        
+        // 4. 总得分
+        return b.goalsFor - a.goalsFor;
+      });
+      
+      // 记录排名说明
+      let explanation = '';
+      
+      // 生成排名行
+      sortedTeams.forEach((team, index) => {
+        const rank = index + 1;
+        const row = document.createElement('tr');
+        row.className = 'border-b hover:bg-gray-50 transition-custom';
+        
+        // 获取与其他队伍的胜负关系
+        let headToHeadRecord = '';
+        for (const opponent in team.headToHead) {
+          if (opponent !== team.shortName) {
+            const result = team.headToHead[opponent];
+            const resultText = result === 'win' ? '胜' : result === 'loss' ? '负' : '平';
+            headToHeadRecord += `${teams[opponent].name}:${resultText} `;
+          }
+        }
+        
+        // 构建奖牌单元格
+        let medalCell = '';
+        if (rank <= 3) {
+          const medalClasses = rank === 1 ? 
+            'text-medal-gold medal-animation' : 
+            rank === 2 ? 'text-medal-silver medal-animation' : 'text-medal-bronze medal-animation';
+          const medalIcon = rank === 1 ? 
+            '<i class="fa fa-trophy text-2xl"></i>' : 
+            rank === 2 ? '<i class="fa fa-medal text-2xl"></i>' : '<i class="fa fa-medal text-2xl" style="color: #cd7f32;"></i>';
+          medalCell = `<td class="px-4 py-3 text-center">${medalIcon}</td>`;
+        } else {
+          medalCell = '<td class="px-4 py-3 text-center">-</td>';
+        }
+        
+        // 构建表格行（移除了队长头像）
+        row.innerHTML = `
+          <td class="px-4 py-3 font-semibold">${rank}</td>
+          <td class="px-4 py-3">
+            <div class="flex items-center">
+              <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mr-2">
+                <span class="font-bold text-primary">${team.shortName}</span>
+              </div>
+              ${team.name}
+            </div>
+          </td>
+          <td class="px-4 py-3 text-center">${team.played}</td>
+          <td class="px-4 py-3 text-center font-semibold">${team.points}</td>
+          <td class="px-4 py-3 text-center">${team.goalsFor}</td>
+          <td class="px-4 py-3 text-center">${team.goalsAgainst}</td>
+          <td class="px-4 py-3 text-center ${team.goalDifference > 0 ? 'text-green-600' : team.goalDifference < 0 ? 'text-red-600' : 'text-gray-500'}">${team.goalDifference}</td>
+          <td class="px-4 py-3 text-center">${headToHeadRecord || '-'}</td>
+          ${medalCell}
+        `;
+        
+        tableBody.appendChild(row);
+        
+        // 构建排名说明
+        if (index > 0) {
+          const prevTeam = sortedTeams[index - 1];
+          
+          if (team.points < prevTeam.points) {
+            explanation += `<p>${team.name} 积分(${team.points})少于 ${prevTeam.name}(${prevTeam.points})，排名第${rank}。</p>`;
+          } else if (team.goalDifference < prevTeam.goalDifference) {
+            explanation += `<p>${team.name} 和 ${prevTeam.name} 积分相同(${team.points})，但 ${team.name} 净胜分(${team.goalDifference})少于 ${prevTeam.name}(${prevTeam.goalDifference})，排名第${rank}。</p>`;
+          } else if (team.headToHead[prevTeam.shortName] === 'loss') {
+            explanation += `<p>${team.name} 和 ${prevTeam.name} 积分(${team.points})和净胜分(${team.goalDifference})相同，但 ${team.name} 对战 ${prevTeam.name} 负，排名第${rank}。</p>`;
+          } else if (team.goalsFor < prevTeam.goalsFor) {
+            explanation += `<p>${team.name} 和 ${prevTeam.name} 积分(${team.points})、净胜分(${team.goalDifference})相同，且对战${team.headToHead[prevTeam.shortName] === 'draw' ? '平' : '数据缺失'}，但 ${team.name} 总得分(${team.goalsFor})少于 ${prevTeam.name}(${prevTeam.goalsFor})，排名第${rank}。</p>`;
+          }
+        }
+      });
+      
+      // 显示排名说明
+      const explanationContainer = document.getElementById('ranking-explanation');
+      const explanationText = document.getElementById('explanation-text');
+      
+      if (explanation) {
+        explanationText.innerHTML = explanation;
+        explanationContainer.classList.remove('hidden');
+      } else {
+        explanationContainer.classList.add('hidden');
+      }
+    }
+  </script>
+</body>
+</html>
